@@ -1,14 +1,23 @@
 #include <ezButton.h>
+#include <MD_Parola.h>
+#include <MD_MAX72xx.h>
+#include <SPI.h>
 
-#define PANEL_DIN 6
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
+#define MAX_DEVICES   4   // 4 modules 8x8 = 32x8 pixels
+
+#define PANEL_DIN 2
 #define PANEL_CLK 4
-#define PANEL_CS 7
+#define PANEL_CS  7
 
-#define PANEL_BUZZER 0
+MD_Parola display = MD_Parola(HARDWARE_TYPE, PANEL_DIN, PANEL_CLK, PANEL_CS, MAX_DEVICES);
+MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, PANEL_DIN, PANEL_CLK, PANEL_CS, MAX_DEVICES);
 
-#define BUTTON_RED 1
-#define BUTTON_GREEN 2
-#define BUTTON_BLUE 3
+#define PANEL_BUZZER 5
+
+#define BUTTON_RED 10
+#define BUTTON_GREEN 18
+#define BUTTON_BLUE 21
 
 ezButton buttonRed(BUTTON_RED);
 ezButton buttonGreen(BUTTON_GREEN);
@@ -63,6 +72,12 @@ void setup() {
   buttonRed.setDebounceTime(50);
   buttonGreen.setDebounceTime(50);
   buttonBlue.setDebounceTime(50);
+
+  mx.begin();
+
+  display.begin();
+  display.setIntensity(5);
+  display.displayClear();
 }
 
 void loop() {
