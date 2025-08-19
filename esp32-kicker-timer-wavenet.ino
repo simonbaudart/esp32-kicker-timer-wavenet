@@ -2,6 +2,11 @@
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
 #include <SPI.h>
+#include <Preferences.h>
+
+#define PREF_KEY_TIMER_DURATION "timerDuration"
+Preferences prefs;
+unsigned long storedTimerDuration = 0;
 
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4  // 4 modules 8x8 = 32x8 pixels
@@ -34,6 +39,8 @@ bool adjustMode = false;
 unsigned long adjustStep = 10;
 
 void countdownStart() {
+  saveTimerDuration();
+
   timerRemaining = timerDuration;
   timerStarted = millis();
   running = true;
@@ -138,8 +145,24 @@ void whistleNearEnd() {
   tone(PANEL_BUZZER, 2000, 100);
 }
 
+void saveTimerDuration() {
+  if(timerDuration != storedTimerDuration) {
+    prefs.begin("timer", false);
+    prefs.putUInt(PREF_KEY_TIMER_DURATION, timerDuration);
+    prefs.end();
+    storedTimerDuration = timerDuration;
+  }
+}
+
 void setup() {
   Serial.begin(115200);
+
+  prefs.begin("timer", true);
+  if (prefs.isKey(PREF_KEY_TIMER_DURATION)) {
+    timerDuration = prefs.getUInt(PREF_KEY_TIMER_DURATION);
+    storedTimerDuration = timerDuration;
+  }
+  prefs.end();
 
   buttonRed.setDebounceTime(50);
   buttonGreen.setDebounceTime(50);
