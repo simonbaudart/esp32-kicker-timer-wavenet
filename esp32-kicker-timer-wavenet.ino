@@ -30,6 +30,9 @@ unsigned long timerStarted = 0;
 unsigned long lastBeepSecond = 0;
 bool running = false;
 
+bool adjustMode = false;
+unsigned long adjustStep = 10;
+
 void countdownStart() {
   timerRemaining = timerDuration;
   timerStarted = millis();
@@ -93,6 +96,22 @@ void countdownDisplay() {
   display.displayAnimate();
 }
 
+void displayAdjustment() {
+  display.displayClear();
+
+  int minutes = timerDuration / 60;
+  int seconds = timerDuration % 60;
+  char buf[6];
+  snprintf(buf, sizeof(buf), "%02d:%02d", minutes, seconds);
+
+  display.displayText(buf, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+
+  float percent = 0;
+  drawProgressBar(percent);
+
+  display.displayAnimate();
+}
+
 void drawProgressBar(float percent) {
   int totalCols = MAX_DEVICES * 8;  // 32 columns
   int filledCols = (int)(percent * totalCols);
@@ -136,14 +155,32 @@ void setup() {
 }
 
 void loop() {
-  if (buttonGreen.isPressed()) {
-    countdownStart();
+
+  if (buttonBlue.isPressed()) {
+    adjustMode = true;
+  } else {
+    adjustMode = false;
   }
 
-  if (buttonRed.isPressed()) {
-    countdownStop();
-  }
+  if (adjustMode) {
+    if (buttonRed.isPressed()) {
+      if (timerDuration >= adjustStep) timerDuration -= adjustStep;
+    }
+    if (buttonGreen.isPressed()) {
+      timerDuration += adjustStep;
+    }
 
-  countdown();
-  countdownDisplay();
+    displayAdjustment();
+  } else {
+    if (buttonGreen.isPressed()) {
+      countdownStart();
+    }
+
+    if (buttonRed.isPressed()) {
+      countdownStop();
+    }
+
+    countdown();
+    countdownDisplay();
+  }
 }
