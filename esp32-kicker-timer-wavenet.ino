@@ -37,6 +37,8 @@ bool running = false;
 
 bool adjustMode = false;
 unsigned long adjustStep = 10;
+unsigned long lastAdjustTime = 0;
+const unsigned long adjustInterval = 300;
 
 void countdownStart() {
   saveTimerDuration();
@@ -146,7 +148,7 @@ void whistleNearEnd() {
 }
 
 void saveTimerDuration() {
-  if(timerDuration != storedTimerDuration) {
+  if (timerDuration != storedTimerDuration) {
     prefs.begin("timer", false);
     prefs.putUInt(PREF_KEY_TIMER_DURATION, timerDuration);
     prefs.end();
@@ -181,16 +183,23 @@ void loop() {
 
   if (buttonBlue.isPressed()) {
     adjustMode = true;
+    lastAdjustTime = millis();
   } else {
     adjustMode = false;
   }
 
   if (adjustMode) {
-    if (buttonRed.isPressed()) {
-      if (timerDuration >= adjustStep) timerDuration -= adjustStep;
-    }
-    if (buttonGreen.isPressed()) {
-      timerDuration += adjustStep;
+    unsigned long now = millis();
+
+    if (now - lastAdjustTime >= adjustInterval) {
+      if (buttonRed.isPressed()) {
+        if (timerDuration >= adjustStep) timerDuration -= adjustStep;
+        lastAdjustTime = now;
+      }
+      if (buttonGreen.isPressed()) {
+        timerDuration += adjustStep;
+        lastAdjustTime = now;
+      }
     }
 
     displayAdjustment();
