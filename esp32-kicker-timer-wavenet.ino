@@ -1,5 +1,6 @@
 #include <ezButton.h>
 #include <MD_Parola.h>
+#include "Font5x7Fixed.h"
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include <Preferences.h>
@@ -11,24 +12,29 @@ unsigned long storedTimerDuration = 0;
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4  // 4 modules 8x8 = 32x8 pixels
 
-#define PANEL_DIN 2
+#define PANEL_DIN 6
 #define PANEL_CLK 4
 #define PANEL_CS 7
 
 MD_Parola display = MD_Parola(HARDWARE_TYPE, PANEL_DIN, PANEL_CLK, PANEL_CS, MAX_DEVICES);
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, PANEL_DIN, PANEL_CLK, PANEL_CS, MAX_DEVICES);
 
-#define PANEL_BUZZER 5
+#define BUZZER 0
+#define NOTE_G5 784
+#define NOTE_E5 659
+#define NOTE_C5 523
+#define NOTE_D5 587
+#define NOTE_F5 698
 
-#define BUTTON_RED 10
-#define BUTTON_GREEN 18
-#define BUTTON_BLUE 21
+#define BUTTON_RED 1
+#define BUTTON_GREEN 3
+#define BUTTON_BLUE 10
 
 ezButton buttonRed(BUTTON_RED);
 ezButton buttonGreen(BUTTON_GREEN);
 ezButton buttonBlue(BUTTON_BLUE);
 
-unsigned long timerDuration = 8 * 60;
+unsigned long timerDuration = 15;
 unsigned long timerRemaining = timerDuration;
 unsigned long timerRemainingDisplay = 0;
 unsigned long timerStarted = 0;
@@ -36,11 +42,10 @@ unsigned long lastBeepSecond = 0;
 bool running = false;
 
 bool adjustMode = false;
-unsigned long adjustStep = 10;
-unsigned long lastAdjustTime = 0;
-const unsigned long adjustInterval = 300;
+unsigned long adjustStep = 5;
 
 void countdownStart() {
+  Serial.println("Starting Countdown !");
   saveTimerDuration();
 
   timerRemaining = timerDuration;
@@ -52,8 +57,11 @@ void countdownStart() {
 }
 
 void countdownStop() {
+  Serial.println("Stop Countdown !");
   timerStarted = 0;
   running = false;
+  whistleBlurp();
+  displayReady();
 }
 
 void countdown() {
@@ -64,9 +72,11 @@ void countdown() {
   unsigned long ellapsed = (millis() - timerStarted) / 1000;
   if (ellapsed >= timerDuration) {
     timerRemaining = 0;
-    running = false;
 
+    countdownDisplay();
     whistleEnd();
+
+    running = false;
   } else {
     timerRemaining = timerDuration - ellapsed;
 
@@ -78,31 +88,41 @@ void countdown() {
 }
 
 void countdownDisplay() {
-  if (timerRemaining == timerRemainingDisplay) {
+
+  if (!running) {
     return;
   }
 
-  Serial.println("Timer Remaining : " + timerRemaining);
+  if (timerRemaining == timerRemainingDisplay) {
+    return;
+  }
   timerRemainingDisplay = timerRemaining;
 
   display.displayClear();
 
   if (timerRemaining == 0) {
-    display.displayText("FINISHED", PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
-    drawProgressBar(1.0);
+    display.displayText("DONE !!!", PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+    displayAnimate();
   } else {
     int minutes = timerRemaining / 60;
     int seconds = timerRemaining % 60;
     char buf[6];
     snprintf(buf, sizeof(buf), "%02d:%02d", minutes, seconds);
+    Serial.println(buf);
 
     display.displayText(buf, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
 
-    float percent = 1.0 - ((float)timerRemaining / timerDuration);
-    drawProgressBar(percent);
-  }
+    //   float percent = 1.0 - ((float)timerRemaining / timerDuration);
+    //   drawProgressBar(percent);
 
-  display.displayAnimate();
+    displayAnimate();
+  }
+}
+
+void displayAnimate() {
+  while (!display.displayAnimate()) {
+    display.displayAnimate();
+  }
 }
 
 void displayAdjustment() {
@@ -115,10 +135,22 @@ void displayAdjustment() {
 
   display.displayText(buf, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
 
-  float percent = 0;
-  drawProgressBar(percent);
+  displayAnimate();
+}
 
-  display.displayAnimate();
+void displayReady() {
+  display.displayClear();
+  display.displayText("READY", PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+  displayAnimate();
+}
+
+void displayWavenet() {
+  display.displayClear();
+  display.displayText("Wavenet Rules !!!", PA_CENTER, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+
+  displayAnimate();
+
+  display.displayClear();
 }
 
 void drawProgressBar(float percent) {
@@ -131,20 +163,41 @@ void drawProgressBar(float percent) {
 }
 
 void whistleStart() {
-  // Rapid high-pitch pulses like a whistle
-  for (int i = 0; i < 3; i++) {
-    tone(PANEL_BUZZER, 3000, 150);  // 3kHz, 150ms
-    delay(200);                     // short pause
-  }
-  noTone(PANEL_BUZZER);
+  tone(BUZZER, NOTE_G5, 100);  // "Let's" rapide
+  delay(100);
+
+  tone(BUZZER, NOTE_E5, 100);
+  delay(100);
+
+  noTone(BUZZER);
+  delay(50);  // courte pause pour le rythme
+
+  tone(BUZZER, NOTE_C5, 200);  // "Go!" marqué
+  delay(200);
+
+  tone(BUZZER, NOTE_D5, 150);  // montée finale
+  delay(150);
+
+  tone(BUZZER, NOTE_F5, 150);  // accent final
+  delay(150);
+
+  noTone(BUZZER);
 }
 
 void whistleEnd() {
-  tone(PANEL_BUZZER, 1000, 2000);
+  tone(BUZZER, 1000, 2000);
+}
+
+void whistleBlurp() {
+  for (int freq = 800; freq >= 200; freq -= 100) {
+    tone(BUZZER, freq, 120);  // play each step
+    delay(150);
+  }
+  noTone(BUZZER);
 }
 
 void whistleNearEnd() {
-  tone(PANEL_BUZZER, 2000, 100);
+  tone(BUZZER, 2000, 100);
 }
 
 void saveTimerDuration() {
@@ -153,6 +206,7 @@ void saveTimerDuration() {
     prefs.putUInt(PREF_KEY_TIMER_DURATION, timerDuration);
     prefs.end();
     storedTimerDuration = timerDuration;
+    Serial.println("Timer Duration Persisted");
   }
 }
 
@@ -166,9 +220,9 @@ void setup() {
   }
   prefs.end();
 
-  buttonRed.setDebounceTime(50);
-  buttonGreen.setDebounceTime(50);
-  buttonBlue.setDebounceTime(50);
+  buttonRed.setDebounceTime(100);
+  buttonGreen.setDebounceTime(100);
+  buttonBlue.setDebounceTime(100);
 
   mx.begin();
 
@@ -176,39 +230,46 @@ void setup() {
   display.setIntensity(5);
   display.displayClear();
 
-  pinMode(PANEL_BUZZER, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+
+  whistleStart();
+  displayWavenet();
+  displayReady();
 }
 
 void loop() {
+  buttonRed.loop();
+  buttonBlue.loop();
+  buttonGreen.loop();
 
-  if (buttonBlue.isPressed()) {
-    adjustMode = true;
-    lastAdjustTime = millis();
-  } else {
-    adjustMode = false;
+
+  if (buttonBlue.isReleased()) {
+    adjustMode = !adjustMode;
+    if (adjustMode) {
+      timerStarted = 0;
+      running = false;
+      adjustMode = true;
+    }
   }
 
   if (adjustMode) {
-    unsigned long now = millis();
+    if (buttonRed.isReleased()) {
+      if (timerDuration >= adjustStep) timerDuration -= adjustStep;
+    }
 
-    if (now - lastAdjustTime >= adjustInterval) {
-      if (buttonRed.isPressed()) {
-        if (timerDuration >= adjustStep) timerDuration -= adjustStep;
-        lastAdjustTime = now;
-      }
-      if (buttonGreen.isPressed()) {
-        timerDuration += adjustStep;
-        lastAdjustTime = now;
-      }
+    if (buttonGreen.isReleased()) {
+      timerDuration += adjustStep;
     }
 
     displayAdjustment();
   } else {
-    if (buttonGreen.isPressed()) {
+    if (buttonGreen.isReleased()) {
+      Serial.println("Button Green Released");
       countdownStart();
     }
 
-    if (buttonRed.isPressed()) {
+    if (buttonRed.isReleased()) {
+      Serial.println("Button Red Released");
       countdownStop();
     }
 
