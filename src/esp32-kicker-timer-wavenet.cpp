@@ -233,8 +233,8 @@ void countdownDisplay()
 
     display.displayText(buf, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
 
-    //   float percent = 1.0 - ((float)timerRemaining / timerDuration);
-    //   drawProgressBar(percent);
+    float percent = 1.0 - ((float)timerRemaining / timerDuration);
+    drawProgressBar(percent);
 
     displayAnimate();
   }
